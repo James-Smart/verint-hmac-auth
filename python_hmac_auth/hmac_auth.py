@@ -2,28 +2,29 @@ import base64
 import datetime
 import hmac
 from hashlib import sha256
-import dateutil.tz
 from requests.auth import AuthBase
-
-try:
-    from urlparse import parse_qs, urlsplit, urlunsplit
-    from urllib import urlencode
-except ImportError:
-    from urllib.parse import parse_qs, urlsplit, urlunsplit, urlencode
+import os
+from urllib.parse import parse_qs, urlsplit, urlunsplit, urlencode
 
 
 def _get_current_timestamp():
     # Return current UTC time in ISO8601 format
-    return datetime.datetime.now(dateutil.tz.tzutc()).isoformat()
+    return datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
-class HmacAuth(AuthBase):
+def _base64url(input_bytes):
+    base64_string = base64.b64encode(input_bytes).decode('utf-8')
+    return base64_string.replace('=', '').replace('+', '-').replace('/', '_')
+
+
+class VerintHmac(AuthBase):
     API_KEY_QUERY_PARAM = 'apiKey'
-    SIGNATURE_HTTP_HEADER = 'X-Auth-Signature'
+    SIGNATURE_HTTP_HEADER = 'Authorization'
     TIMESTAMP_HTTP_HEADER = 'X-Auth-Timestamp'
     VERSION_HTTP_HEADER = 'X-Auth-Version'
     SIGNATURE_DELIM = '\n'
     VERSION_1 = '1'
+    SIGNATURE_PREFIX = 'Vrnt-1-HMAC-SHA256'
 
     def __init__(self, api_key, secret_key):
         self.api_key = api_key
@@ -35,40 +36,22 @@ class HmacAuth(AuthBase):
 
     def _encode(self, request):
         timestamp = _get_current_timestamp()
-        self._add_api_key(request)
         self._add_signature(request, timestamp)
-        request.headers[HmacAuth.TIMESTAMP_HTTP_HEADER] = timestamp
-        request.headers[HmacAuth.VERSION_HTTP_HEADER] = HmacAuth.VERSION_1
+        request.headers['Content-Type'] = 'application/json'
 
-    def _add_api_key(self, request):
-        # Add the API key as a query parameter
-        url = request.url
-        scheme, netloc, path, query_string, fragment = urlsplit(url)
-        query_params = parse_qs(query_string)
-        query_params[HmacAuth.API_KEY_QUERY_PARAM] = self.api_key
-        new_query_string = urlencode(query_params, doseq=True)
-        new_url = urlunsplit((scheme, netloc, path, new_query_string, fragment))
-        request.url = new_url
 
     def _add_signature(self, request, timestamp):
         method = request.method
         path = request.path_url
-        content = request.body
-        signature = self._sign(method, timestamp, path, content)
-        request.headers[HmacAuth.SIGNATURE_HTTP_HEADER] = signature
+        content = request.body or ''
+        salt = _base64url(os.urandom(16))
+        string_to_sign = f'{salt}\n{method}\n{path}\n{timestamp}\n{content}\n'
+        signature = self._sign(string_to_sign)
+        auth_header_value = f'{VerintHmac.SIGNATURE_PREFIX} salt={salt},iat={timestamp},kid={self.api_key},sig={signature}'
+        request.headers[VerintHmac.SIGNATURE_HTTP_HEADER] = auth_header_value
 
-    def _sign(self, method, timestamp, path, content):
-        # Build the message to sign
 
-        message = bytearray(method, 'utf-8') + \
-                  bytearray(HmacAuth.SIGNATURE_DELIM, 'utf-8') + \
-                  bytearray(timestamp, 'utf-8') + \
-                  bytearray(HmacAuth.SIGNATURE_DELIM, 'utf-8') + \
-                  bytearray(path, 'utf-8')
-
-        if content:
-            message += bytearray(HmacAuth.SIGNATURE_DELIM, 'utf-8') + bytearray(content, 'utf-8')
-
-        # Create the signature
-        digest = hmac.new(key=bytearray(self.secret_key, 'utf-8'), msg=message, digestmod=sha256).digest()
-        return base64.urlsafe_b64encode(digest).strip()
+    def _sign(self, string_to_sign):
+        #digest = hmac.new(key=bytearray(self.secret_key, 'utf-8'), msg=bytearray(string_to_sign, 'utf-8'), digestmod=sha256).digest()
+        hash = hmac.new(base64.b64decode(self.secret_key),string_to_sign.encode('utf-8'),sha256)
+        return _base64url(hash.digest())

@@ -1,1 +1,1 @@
-from .hmac_auth import HmacAuth
+from .hmac_auth import VerintHmac

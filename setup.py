@@ -7,15 +7,15 @@ def read(filename):
 
 
 setup(
-    name='python-hmac-auth',
+    name='verint-hmac-auth',
     version='0.5',
-    description='Python client for jersey-hmac-auth (https://github.com/bazaarvoice/jersey-hmac-auth)',
+    description='Python client for verint hmac authentication (Vrnt-1-HMAC-SHA256)',
     long_description=read('README.md'),
-    url='https://github.com/bazaarvoice/python-hmac-auth',
+    url='',
     license=read('LICENSE'),
-    author='Bazaarvoice',
-    author_email='benton.porter@bazaarvoice.com',
-    packages=['python_hmac_auth'],
+    author='James Smart',
+    author_email='',
+    packages=['verint_hmac_auth'],
     include_package_data=True,
     classifiers=[
         'Development Status :: 5 - Production/Stable',
@@ -24,17 +24,10 @@ setup(
         'License :: OSI Approved :: Apache Software License',
         'Operating System :: OS Independent',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.6',
-        'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.3',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
-    install_requires=['requests', 'python-dateutil']
+    install_requires=['requests']
 )
